@@ -2169,4 +2169,183 @@ You learned how to:
 
 ---
 
+## Simulation of FINFET
+
+
+<img width="900" height="546" alt="image" src="https://github.com/user-attachments/assets/7caaf0e1-bc51-4d56-b9c9-d2ea7ca06d47" />
+
+
+<img width="672" height="640" alt="image" src="https://github.com/user-attachments/assets/76c2a0df-7808-4871-9c8d-e74a2a2e5944" />
+
+
+<img width="1028" height="577" alt="image" src="https://github.com/user-attachments/assets/f82b2229-47ba-4af9-aecb-0bcc44db8514" />
+
+
+<img width="737" height="525" alt="image" src="https://github.com/user-attachments/assets/4c93639a-0f0b-45ce-8f30-082f2b57b567" />
+
+
+<img width="1061" height="541" alt="image" src="https://github.com/user-attachments/assets/dd036cb6-f15a-4693-833f-a1b4b6a8d124" />
+
+Great! You’ve provided several images from a **Sentaurus Device simulation** setup for a **FinFET (Fin Field Effect Transistor)** using **quantum transport modeling** via **Schrödinger–Poisson and NEGF (Non-Equilibrium Green’s Function)** methods. Below is a **detailed but easy-to-understand explanation** of the setup and simulation process you are working on:
+
+---
+
+## ✅ What is a FinFET?
+
+A **FinFET** is a type of transistor where the **channel is a thin silicon "fin"** that sticks up vertically from the substrate. Instead of the gate sitting on top like in traditional MOSFETs, the gate **wraps around three sides** of the fin, giving **better control of current**. This allows for **less leakage** and **better performance** in small-size devices (like modern processors).
+
+---
+
+## 🔍 Why Use Schrödinger and NEGF?
+
+When devices shrink to nanometer scales (as in your FinFET simulation), classical models like **drift-diffusion** become inaccurate. That's why **quantum models** are used:
+
+### ▶ Schrödinger Equation:
+
+* Solves for **quantum states** (energy levels and wavefunctions) of electrons.
+* Important for **quantum confinement effects**, especially in narrow fins.
+
+### ▶ NEGF (Non-Equilibrium Green's Function):
+
+* Allows modeling of **current flow at nanoscale**, where classical current equations fail.
+* Considers **quantum tunneling, scattering**, and **carrier transport** through discrete energy states.
+
+---
+
+## 🔧 Simulation Structure
+
+### 🧩 Mesh Definitions
+
+The **mesh** defines how finely the device is divided in space for calculations.
+
+* `x.m`, `y.m`, `z.m` define mesh in **X, Y, Z directions**.
+* Finer mesh (small `s` values) used in important regions like the **channel**, where precise quantum behavior must be captured.
+* `spx.m`, `spy.m`, `spz.m` are **special Schrödinger meshes**, needed for accurate quantum solutions.
+
+💡 In your code:
+
+* `x.m` from 0 to 0.05 µm covers the full device length.
+* `y.m` and `z.m` show very small values (in microns), indicating nanoscale dimensions — matching the FinFET fin size.
+
+---
+
+### 🧱 Region Definitions
+
+Different materials used in the device are defined as **regions**:
+
+| Region Number | Material | Notes                          |
+| ------------- | -------- | ------------------------------ |
+| 1             | Silicon  | The fin (channel)              |
+| 2             | SiO₂     | Oxide (insulating) around gate |
+| 3             | Air      | Surrounding environment        |
+
+---
+
+### ⚡ Electrodes / Contacts
+
+Your device includes 3 main electrodes:
+
+* `Source` (num=2)
+* `Drain` (num=3)
+* `Gate` (num=1, repeated 3 times to cover **all 3 sides** of the fin)
+
+Contacts are defined with:
+
+* `reflect` (Neumann BC — for **source/drain**)
+* `workfun=4.8` for gate (Schottky contact with **work function 4.8 eV**)
+
+---
+
+## 📊 Doping Profiles
+
+Doping defines the type and amount of carriers in different regions:
+
+* **Channel (region=1)**: Lightly doped or **intrinsic** (very low doping).
+* **Source/Drain areas**: Heavily doped (10²⁰ cm⁻³) to form **N+ contacts**.
+
+Defined with:
+
+```plaintext
+doping region=1 n.type uniform conc=1e20 ...
+```
+
+---
+
+## 🧠 Physics Models
+
+Defined with:
+
+```plaintext
+models schrodinger ^p.schro negf_ms ^Ox.Schro sp.fast sp.geom=2dyz
+```
+
+Breakdown:
+
+* `schrodinger`: Enable quantum simulation.
+* `^p.schro`: Don’t solve Schrödinger for **holes** (only for **electrons**).
+* `negf_ms`: Use NEGF for quantum current.
+* `^Ox.Schro`: No penetration into oxide.
+* `sp.fast`: Enables fast solver.
+* `sp.geom=2dyz`: This is a **2D simulation in Y-Z plane**, with transport along **X**.
+
+---
+
+## 📉 Simulation Setup
+
+### Initial Solution:
+
+```plaintext
+solve init
+```
+
+Then apply a **drain voltage (v3=1.0)**:
+
+```plaintext
+solve v3=1.0
+save outf=quantumex16_negf_vg00_vd10.str negf.log
+```
+
+### Sweep Gate Voltage:
+
+```plaintext
+log outf=quantumex16_negf_IVg_vd10.log
+solve v3=1.0 v1=0.0 vstep=0.05 vfinal=1.2 name=gate
+```
+
+This means:
+
+* **Drain voltage is fixed at 1V**.
+* **Gate voltage is swept from 0V to 1.2V** in steps of 0.05V.
+* At each step, the current is calculated.
+
+---
+
+## 📈 Results & Analysis
+
+After simulation, you can:
+
+* View **I-V curves** (drain current vs gate voltage).
+* Observe **quantized energy states** from Schrödinger solver.
+* Visualize **wavefunctions**, **electron density**, **electric field**, etc.
+
+In the logs:
+
+* Drain current increases as **gate voltage increases**, showing transistor **turning ON**.
+* You can observe **saturation** and **threshold voltage** behavior.
+
+---
+
+## 🔑 Summary (Easy to Remember)
+
+| Part                 | Description                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| FinFET Device        | 3D gate around a narrow silicon fin (better control, less leakage)         |
+| Mesh                 | Finer mesh in fin/channel for quantum accuracy                             |
+| Schrödinger Equation | Finds energy levels and wavefunctions in nanostructures                    |
+| NEGF Method          | Models quantum current flow, including tunneling and scattering            |
+| Contacts             | Source/Drain = reflect (Neumann BC), Gate = Schottky contact               |
+| Simulation Flow      | Apply voltage, solve for quantum states, sweep gate voltage, log current   |
+| Outputs              | I–V curves, energy levels, wavefunctions, electron density, electric field |
+
+---
 
